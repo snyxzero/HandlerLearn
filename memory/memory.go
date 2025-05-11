@@ -1,86 +1,48 @@
-package memory
+package serverMemoryPackage
 
 import (
-	"fmt"
-	"net/http"
+	"pasha/models"
 	"sync"
 )
 
-type UserClipboard struct {
-	Id   uint   `json:"id"`
-	Name string `json:"name"`
-	Age  uint   `json:"age"`
-	Gay  bool   `json:"gay"`
-}
-
-type User struct {
-	id   uint
-	name string
-	age  uint
-	gay  bool
-}
-
 type ServerMemory struct {
-	user map[uint]User
-	Mu   sync.Mutex
-	w    http.ResponseWriter
+	user map[int]models.User
+	mu   sync.Mutex
 }
 
 func NewServerMemory() *ServerMemory {
 	return &ServerMemory{
-		user: make(map[uint]User),
+		user: make(map[int]models.User),
 	}
 }
 
-func (memory *ServerMemory) UserGet(id uint) (*UserClipboard, error) {
-	if _, ok := memory.user[id]; !ok {
-
-		return nil, fmt.Errorf("User not found")
-	}
-	return &UserClipboard{
-		Id:   id,
-		Name: memory.user[id].name,
-		Age:  memory.user[id].age,
-		Gay:  memory.user[id].gay,
-	}, nil
+func (obj *ServerMemory) FoundUser(id int) (ok bool) {
+	_, ok = obj.user[id]
+	return ok
 }
 
-func (memory *ServerMemory) UserAdd(u UserClipboard) error {
-	memory.Mu.Lock()
-	defer memory.Mu.Unlock()
-	if _, ok := memory.user[u.Id]; ok {
-		return fmt.Errorf("User already exist")
-	}
-	memory.user[u.Id] = User{
-		id:   u.Id,
-		name: u.Name,
-		age:  u.Age,
-		gay:  u.Gay,
-	}
-	return nil
+func (obj *ServerMemory) AddUser(user models.User) {
+	obj.mu.Lock()
+	obj.user[user.ID] = user
+	obj.mu.Unlock()
+	return
 }
 
-func (memory *ServerMemory) UserUpdate(u UserClipboard) {
-	memory.Mu.Lock()
-	defer memory.Mu.Unlock()
-	if _, ok := memory.user[u.Id]; !ok {
-		http.Error(memory.w, "Этого id не существует", http.StatusConflict)
-		return
-	}
-	memory.user[u.Id] = User{
-		id:   u.Id,
-		name: u.Name,
-		age:  u.Age,
-		gay:  u.Gay,
-	}
+func (obj *ServerMemory) GetUser(id int) (user models.User) {
+	user = obj.user[id]
+	return user
 }
 
-func (memory *ServerMemory) UserDel(id uint) {
-	memory.Mu.Lock()
-	defer memory.Mu.Unlock()
-	if _, ok := memory.user[id]; !ok {
-		http.Error(memory.w, "Этого id не существует", http.StatusConflict)
-		return
-	}
-	delete(memory.user, id)
+func (obj *ServerMemory) UpdateUser(user models.User) {
+	obj.mu.Lock()
+	obj.user[user.ID] = user
+	obj.mu.Unlock()
+	return
+}
+
+func (obj *ServerMemory) DeleteUser(id int) {
+	obj.mu.Lock()
+	delete(obj.user, id)
+	obj.mu.Unlock()
+	return
 }
