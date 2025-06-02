@@ -6,44 +6,44 @@ import (
 )
 
 type ServerMemory struct {
-	user map[int]models.User
+	user map[string]models.User
 	mu   sync.Mutex
 }
 
 /*asdasdas*/
 func NewServerMemory() *ServerMemory {
 	return &ServerMemory{
-		user: make(map[int]models.User),
+		user: make(map[string]models.User),
 	}
 }
 
-func (obj *ServerMemory) FoundUser(id int) (ok bool) {
-	_, ok = obj.user[id]
+func (obj *ServerMemory) FoundUser(email string) (ok bool) {
+	_, ok = obj.user[email]
 	return ok
 }
 
 func (obj *ServerMemory) AddUser(user models.User) {
 	obj.mu.Lock()
-	obj.user[user.ID] = user
+	obj.user[user.Email] = user
 	obj.mu.Unlock()
 	return
 }
 
-func (obj *ServerMemory) GetUser(id int) (user models.User) {
-	user = obj.user[id]
+func (obj *ServerMemory) GetUser(email string) (user models.User) {
+	user = obj.user[email]
 	return user
 }
 
 func (obj *ServerMemory) UpdateUser(user models.User) {
 	obj.mu.Lock()
-	obj.user[user.ID] = user
+	obj.user[user.Email] = user
 	obj.mu.Unlock()
 	return
 }
 
-func (obj *ServerMemory) DeleteUser(id int) {
+func (obj *ServerMemory) DeleteUser(email string) {
 	obj.mu.Lock()
-	delete(obj.user, id)
+	delete(obj.user, email)
 	obj.mu.Unlock()
 	return
 }
