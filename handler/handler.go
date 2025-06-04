@@ -4,33 +4,32 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
+	"log"
 	"net/http"
-	serverMemoryPackage "pasha/memory"
 	"pasha/models"
+	"pasha/repository"
+	"strconv"
 )
 
+const errorFormat = "Неверный формат данных"
+const invalidID = "Некорректный id"
+
 type UserClipboard struct {
+	ID    int    `json:"id,omitempty"`
 	Email string `json:"email,omitempty"`
 	Name  string `json:"name,omitempty"`
 	Age   int    `json:"age,omitempty"`
 }
 
 type UserHandler struct {
-	serverMemory *serverMemoryPackage.ServerMemory
+	bdSQL *repository.Repository
 }
 
-func NewUserHandler(serverMemory *serverMemoryPackage.ServerMemory) *UserHandler {
+func NewUserHandler(bdSQL *repository.Repository) *UserHandler {
 
 	return &UserHandler{
-		serverMemory: serverMemory,
+		bdSQL: bdSQL,
 	}
-}
-
-func printUser(w http.ResponseWriter, user models.User) {
-	fmt.Fprintf(w, `Email %d: 
-Имя - %s
-Возвраст - %d`, user.Email, user.Name, user.Age)
-	return
 }
 
 func (obj *UserHandler) AddUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -38,80 +37,108 @@ func (obj *UserHandler) AddUserHandler(w http.ResponseWriter, r *http.Request) {
 	var data UserClipboard
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Println(err)
+		http.Error(w, errorFormat, http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
 
 	user := models.User{
+
 		Email: data.Email,
 		Name:  data.Name,
 		Age:   data.Age,
 	}
 
-	if obj.serverMemory.FoundUser(user.Email) {
-		http.Error(w, "Пользователь с этим Email уже существует", http.StatusConflict)
-		return
+	err = obj.bdSQL.AddUser(user)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Не удалось добавить пользователя", http.StatusBadRequest)
 	}
-
-	obj.serverMemory.AddUser(user)
-	fmt.Println("Записали нового пользователя:")
-	printUser(w, obj.serverMemory.GetUser(user.Email))
+	fmt.Fprintln(w, "Пользователь добавлен")
 	return
 }
 
 func (obj *UserHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
-	email := mux.Vars(r)["email"]
-
-	if !obj.serverMemory.FoundUser(email) {
-		http.Error(w, "Пользователя с этим Email не существует", http.StatusConflict)
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		log.Println(err)
+		http.Error(w, invalidID, http.StatusBadRequest)
 		return
 	}
 
-	fmt.Println("Данные пользователя по запросу:")
-	printUser(w, obj.serverMemory.GetUser(email))
-	return
+	user, err := obj.bdSQL.GetUser(id)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Не нашли пользователя", http.StatusBadRequest)
+		return
+	}
+
+	jsonData, err := json.Marshal(user)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Ошибка сервера", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write(jsonData)
+	if err != nil {
+		log.Println("Error writing response:", err)
+		http.Error(w, "Ошибка сервера при ответе", http.StatusInternalServerError)
+		return
+	}
+
 }
 
 func (obj *UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
-	email := mux.Vars(r)["email"]
-
-	if !obj.serverMemory.FoundUser(email) {
-		http.Error(w, "Пользователя с этим Email не существует", http.StatusConflict)
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		log.Println(err)
+		http.Error(w, invalidID, http.StatusBadRequest)
 		return
 	}
 
 	var data UserClipboard
-	err := json.NewDecoder(r.Body).Decode(&data)
+	err = json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Println(err)
+		http.Error(w, errorFormat, http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
 
 	user := models.User{
-		Email: email,
+		ID:    id,
+		Email: data.Email,
 		Name:  data.Name,
 		Age:   data.Age,
 	}
 
-	obj.serverMemory.UpdateUser(user)
-
-	fmt.Fprintf(w, "Пользователь Email = %d изменен:", email)
-	printUser(w, obj.serverMemory.GetUser(email))
-
+	err = obj.bdSQL.UpdateUser(user)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Не получилось обновить данные", http.StatusBadRequest)
+		return
+	}
+	fmt.Fprintf(w, "Пользователь ID = %d изменен\n", id)
 	return
 }
 
 func (obj *UserHandler) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
-	email := mux.Vars(r)["email"]
-
-	if !obj.serverMemory.FoundUser(email) {
-		http.Error(w, "Пользователя с этим Email не существует", http.StatusConflict)
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		log.Println(err)
+		http.Error(w, invalidID, http.StatusBadRequest)
 		return
 	}
 
-	obj.serverMemory.DeleteUser(email)
+	err = obj.bdSQL.DeleteUser(id)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Не получилось удалить пользователя", http.StatusBadRequest)
+		return
+	}
 	fmt.Fprintln(w, "Пользователь удален")
 
 	return

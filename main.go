@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 	"pasha/handler"
-	"pasha/memory"
+	"pasha/repository"
 )
 
 func CheckIpMiddleware(next http.Handler) http.Handler {
@@ -27,17 +27,20 @@ func CheckIpMiddleware(next http.Handler) http.Handler {
 
 func main() {
 
-	mem := serverMemoryPackage.NewServerMemory()
-	userHandler := handler.NewUserHandler(mem)
+	bdConn := repository.NewRepository()
+
+	/*	mem := serverMemoryPackage.NewServerMemory()*/
+	userHandler := handler.NewUserHandler(bdConn)
 	rout := mux.NewRouter()
 	rout.Use(CheckIpMiddleware)
 
 	rout.HandleFunc("/user", userHandler.AddUserHandler).Methods(http.MethodPost)
-	rout.HandleFunc("/user/{email:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}}", userHandler.GetUserHandler).Methods(http.MethodGet)
-	rout.HandleFunc("/user/{email:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", userHandler.UpdateUserHandler).Methods(http.MethodPut)
-	rout.HandleFunc("/user/{email:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", userHandler.DeleteUserHandler).Methods(http.MethodDelete)
+	rout.HandleFunc("/user/{id:[0-9]+}", userHandler.GetUserHandler).Methods(http.MethodGet)
+	rout.HandleFunc("/user/{id:[0-9]+}", userHandler.UpdateUserHandler).Methods(http.MethodPut)
+	rout.HandleFunc("/user/{id:[0-9]+}", userHandler.DeleteUserHandler).Methods(http.MethodDelete)
 
 	fmt.Println("Сервер запущен на http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", rout))
 
+	bdConn.Close()
 }
