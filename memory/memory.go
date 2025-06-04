@@ -10,7 +10,6 @@ type ServerMemory struct {
 	mu   sync.Mutex
 }
 
-/*asdasdas*/
 func NewServerMemory() *ServerMemory {
 	return &ServerMemory{
 		user: make(map[string]models.User),
