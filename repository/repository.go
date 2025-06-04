@@ -1,4 +1,4 @@
-package bd
+package repository
 
 import (
 	"context"
@@ -14,7 +14,7 @@ type Repository struct {
 	conn *pgx.Conn
 }
 
-func NewConnectToDB() *Repository {
+func NewRepository() *Repository {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("Error loading .env file")
 	}

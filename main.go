@@ -5,8 +5,8 @@ import (
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
-	"pasha/bd"
 	"pasha/handler"
+	"pasha/repository"
 )
 
 func CheckIpMiddleware(next http.Handler) http.Handler {
@@ -27,7 +27,7 @@ func CheckIpMiddleware(next http.Handler) http.Handler {
 
 func main() {
 
-	bdConn := bd.NewConnectToDB()
+	bdConn := repository.NewRepository()
 
 	/*	mem := serverMemoryPackage.NewServerMemory()*/
 	userHandler := handler.NewUserHandler(bdConn)

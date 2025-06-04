@@ -6,12 +6,12 @@ import (
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
-	"pasha/bd"
 	"pasha/models"
+	"pasha/repository"
 	"strconv"
 )
 
-const dateError = "Неверный формат данных"
+const errorFormat = "Неверный формат данных"
 const invalidID = "Некорректный id"
 
 type UserClipboard struct {
@@ -22,10 +22,10 @@ type UserClipboard struct {
 }
 
 type UserHandler struct {
-	bdSQL *bd.Repository
+	bdSQL *repository.Repository
 }
 
-func NewUserHandler(bdSQL *bd.Repository) *UserHandler {
+func NewUserHandler(bdSQL *repository.Repository) *UserHandler {
 
 	return &UserHandler{
 		bdSQL: bdSQL,
@@ -38,7 +38,7 @@ func (obj *UserHandler) AddUserHandler(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, dateError, http.StatusBadRequest)
+		http.Error(w, errorFormat, http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
@@ -103,7 +103,7 @@ func (obj *UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request
 	err = json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, dateError, http.StatusBadRequest)
+		http.Error(w, errorFormat, http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
