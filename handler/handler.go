@@ -7,12 +7,20 @@ import (
 	"log"
 	"net/http"
 	"pasha/models"
-	"pasha/repository"
 	"strconv"
 )
 
-const errorFormat = "Неверный формат данных"
-const invalidID = "Некорректный id"
+type Repository interface {
+	AddUser(user models.User) error
+	GetUser(id int) (*models.User, error)
+	UpdateUser(user models.User) error
+	DeleteUser(id int) error
+}
+
+const (
+	errDataFormat = "Неверный формат данных"
+	errInvalidID  = "Некорректный id"
+)
 
 type UserClipboard struct {
 	ID    int    `json:"id,omitempty"`
@@ -22,13 +30,13 @@ type UserClipboard struct {
 }
 
 type UserHandler struct {
-	bdSQL *repository.Repository
+	repository Repository
 }
 
-func NewUserHandler(bdSQL *repository.Repository) *UserHandler {
+func NewUserHandler(repository Repository) *UserHandler {
 
 	return &UserHandler{
-		bdSQL: bdSQL,
+		repository: repository,
 	}
 }
 
@@ -38,7 +46,7 @@ func (obj *UserHandler) AddUserHandler(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, errorFormat, http.StatusBadRequest)
+		http.Error(w, errDataFormat, http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
@@ -50,7 +58,7 @@ func (obj *UserHandler) AddUserHandler(w http.ResponseWriter, r *http.Request) {
 		Age:   data.Age,
 	}
 
-	err = obj.bdSQL.AddUser(user)
+	err = obj.repository.AddUser(user)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "Не удалось добавить пользователя", http.StatusBadRequest)
@@ -63,11 +71,11 @@ func (obj *UserHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		log.Println(err)
-		http.Error(w, invalidID, http.StatusBadRequest)
+		http.Error(w, errInvalidID, http.StatusBadRequest)
 		return
 	}
 
-	user, err := obj.bdSQL.GetUser(id)
+	user, err := obj.repository.GetUser(id)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "Не нашли пользователя", http.StatusBadRequest)
@@ -95,7 +103,7 @@ func (obj *UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		log.Println(err)
-		http.Error(w, invalidID, http.StatusBadRequest)
+		http.Error(w, errInvalidID, http.StatusBadRequest)
 		return
 	}
 
@@ -103,7 +111,7 @@ func (obj *UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request
 	err = json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, errorFormat, http.StatusBadRequest)
+		http.Error(w, errDataFormat, http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
@@ -115,7 +123,7 @@ func (obj *UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request
 		Age:   data.Age,
 	}
 
-	err = obj.bdSQL.UpdateUser(user)
+	err = obj.repository.UpdateUser(user)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "Не получилось обновить данные", http.StatusBadRequest)
@@ -129,11 +137,11 @@ func (obj *UserHandler) DeleteUserHandler(w http.ResponseWriter, r *http.Request
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		log.Println(err)
-		http.Error(w, invalidID, http.StatusBadRequest)
+		http.Error(w, errInvalidID, http.StatusBadRequest)
 		return
 	}
 
-	err = obj.bdSQL.DeleteUser(id)
+	err = obj.repository.DeleteUser(id)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "Не получилось удалить пользователя", http.StatusBadRequest)
