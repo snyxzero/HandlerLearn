@@ -61,7 +61,7 @@ func (obj *UserHandler) AddUserHandler(w http.ResponseWriter, r *http.Request) {
 	err = obj.repository.AddUser(user)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, "Не удалось добавить пользователя", http.StatusBadRequest)
+		http.Error(w, "Не удалось добавить пользователя", http.StatusInternalServerError)
 	}
 	fmt.Fprintln(w, "Пользователь добавлен")
 	return
@@ -78,7 +78,7 @@ func (obj *UserHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	user, err := obj.repository.GetUser(id)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, "Не нашли пользователя", http.StatusBadRequest)
+		http.Error(w, "Не нашли пользователя", http.StatusNotFound)
 		return
 	}
 
@@ -126,7 +126,7 @@ func (obj *UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request
 	err = obj.repository.UpdateUser(user)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, "Не получилось обновить данные", http.StatusBadRequest)
+		http.Error(w, "Не получилось обновить данные", http.StatusInternalServerError)
 		return
 	}
 	fmt.Fprintf(w, "Пользователь ID = %d изменен\n", id)
@@ -144,7 +144,7 @@ func (obj *UserHandler) DeleteUserHandler(w http.ResponseWriter, r *http.Request
 	err = obj.repository.DeleteUser(id)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, "Не получилось удалить пользователя", http.StatusBadRequest)
+		http.Error(w, "Не получилось удалить пользователя", http.StatusInternalServerError)
 		return
 	}
 	fmt.Fprintln(w, "Пользователь удален")
