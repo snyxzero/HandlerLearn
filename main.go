@@ -27,10 +27,11 @@ func CheckIpMiddleware(next http.Handler) http.Handler {
 
 func main() {
 
-	bdConn := repository.NewRepository()
+	pgRepo := repository.NewUserSQLRepository()
+	inmemoryRepo := repository.NewUserInMemoryRepository()
 
 	/*	mem := serverMemoryPackage.NewServerMemory()*/
-	userHandler := handler.NewUserHandler(bdConn)
+	userHandler := handler.NewUserHandler(inmemoryRepo)
 	rout := mux.NewRouter()
 	rout.Use(CheckIpMiddleware)
 
@@ -42,5 +43,5 @@ func main() {
 	fmt.Println("Сервер запущен на http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", rout))
 
-	bdConn.Close()
+	pgRepo.Close()
 }
