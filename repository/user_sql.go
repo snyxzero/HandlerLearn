@@ -10,11 +10,11 @@ import (
 	"pasha/models"
 )
 
-type PostgresSQLRepository struct {
+type UserSQLRepository struct {
 	conn *pgx.Conn
 }
 
-func NewPostgresSQLRepository() *PostgresSQLRepository {
+func NewUserSQLRepository() *UserSQLRepository {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("Error loading .env file")
 	}
@@ -29,12 +29,12 @@ func NewPostgresSQLRepository() *PostgresSQLRepository {
 		log.Fatalf("ping failed: %v", err)
 	}
 
-	return &PostgresSQLRepository{
+	return &UserSQLRepository{
 		conn: conn,
 	}
 }
 
-func (obj *PostgresSQLRepository) GetUser(id int) (*models.User, error) {
+func (obj *UserSQLRepository) GetUser(id int) (*models.User, error) {
 	user := &models.User{}
 
 	err := obj.conn.QueryRow(context.Background(), `
@@ -47,7 +47,7 @@ WHERE id = $1`, id).Scan(&user.ID, &user.Email, &user.Name, &user.Age)
 	return user, nil
 }
 
-func (obj *PostgresSQLRepository) AddUser(user models.User) error {
+func (obj *UserSQLRepository) AddUser(user models.User) error {
 	_, err := obj.conn.Exec(context.Background(), `
 INSERT INTO users (email, name, age)
 VALUES ($1, $2, $3)`, user.Email, user.Name, user.Age)
@@ -57,7 +57,7 @@ VALUES ($1, $2, $3)`, user.Email, user.Name, user.Age)
 	return nil
 }
 
-func (obj *PostgresSQLRepository) UpdateUser(user models.User) error {
+func (obj *UserSQLRepository) UpdateUser(user models.User) error {
 	_, err := obj.conn.Exec(context.Background(), `
 UPDATE users
 SET email = $2, name = $3, age = $4
@@ -68,7 +68,7 @@ WHERE id = $1`, user.ID, user.Email, user.Name, user.Age)
 	return nil
 }
 
-func (obj *PostgresSQLRepository) DeleteUser(id int) error {
+func (obj *UserSQLRepository) DeleteUser(id int) error {
 	_, err := obj.conn.Exec(context.Background(), `
 DELETE FROM users
 WHERE id = $1`, id)
@@ -78,6 +78,6 @@ WHERE id = $1`, id)
 	return nil
 }
 
-func (obj *PostgresSQLRepository) Close() {
+func (obj *UserSQLRepository) Close() {
 	obj.conn.Close(context.Background())
 }

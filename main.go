@@ -27,8 +27,8 @@ func CheckIpMiddleware(next http.Handler) http.Handler {
 
 func main() {
 
-	pgRepo := repository.NewPostgresSQLRepository()
-	inmemoryRepo := repository.NewInMemoryRepository()
+	pgRepo := repository.NewUserSQLRepository()
+	inmemoryRepo := repository.NewUserInMemoryRepository()
 
 	/*	mem := serverMemoryPackage.NewServerMemory()*/
 	userHandler := handler.NewUserHandler(inmemoryRepo)
