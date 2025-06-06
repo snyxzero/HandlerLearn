@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	"pasha/models"
 	"sync"
@@ -12,23 +13,23 @@ type UserInMemoryRepository struct {
 	mu    sync.Mutex
 }
 
-func NewUserInMemoryRepository() *UserInMemoryRepository {
+func NewUserInMemoryRepository(ctx context.Context) *UserInMemoryRepository {
 	return &UserInMemoryRepository{
 		user:  make(map[int]models.User),
 		count: 1,
 	}
 }
 
-func (obj *UserInMemoryRepository) AddUser(user models.User) error {
+func (obj *UserInMemoryRepository) AddUser(ctx context.Context, user models.User) (int, error) {
 	obj.mu.Lock()
 	user.ID = obj.count
 	obj.user[obj.count] = user
 	obj.count++
 	obj.mu.Unlock()
-	return nil
+	return user.ID, nil
 }
 
-func (obj *UserInMemoryRepository) GetUser(id int) (*models.User, error) {
+func (obj *UserInMemoryRepository) GetUser(ctx context.Context, id int) (*models.User, error) {
 	user, ok := obj.user[id]
 	if !ok {
 		return nil, fmt.Errorf("user with id %d not found", id)
@@ -37,7 +38,7 @@ func (obj *UserInMemoryRepository) GetUser(id int) (*models.User, error) {
 	return &user, nil
 }
 
-func (obj *UserInMemoryRepository) UpdateUser(user models.User) error {
+func (obj *UserInMemoryRepository) UpdateUser(ctx context.Context, user models.User) error {
 	_, ok := obj.user[user.ID]
 	if !ok {
 		return fmt.Errorf("user with id %d not found", user.ID)
@@ -48,7 +49,7 @@ func (obj *UserInMemoryRepository) UpdateUser(user models.User) error {
 	return nil
 }
 
-func (obj *UserInMemoryRepository) DeleteUser(id int) error {
+func (obj *UserInMemoryRepository) DeleteUser(ctx context.Context, id int) error {
 	obj.mu.Lock()
 	delete(obj.user, id)
 	obj.mu.Unlock()

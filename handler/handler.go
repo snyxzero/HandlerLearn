@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
@@ -11,10 +11,10 @@ import (
 )
 
 type Repository interface {
-	AddUser(user models.User) error
-	GetUser(id int) (*models.User, error)
-	UpdateUser(user models.User) error
-	DeleteUser(id int) error
+	AddUser(ctx context.Context, user models.User) (int, error)
+	GetUser(ctx context.Context, id int) (*models.User, error)
+	UpdateUser(ctx context.Context, user models.User) error
+	DeleteUser(ctx context.Context, id int) error
 }
 
 const (
@@ -31,17 +31,35 @@ type UserClipboard struct {
 
 type UserHandler struct {
 	repository Repository
+	ctx        context.Context
 }
 
-func NewUserHandler(repository Repository) *UserHandler {
+func NewUserHandler(ctx context.Context, repository Repository) *UserHandler {
 
 	return &UserHandler{
 		repository: repository,
+		ctx:        ctx,
+	}
+}
+
+func writeResponse(w http.ResponseWriter, data any) {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Ошибка сервера", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write(jsonData)
+	if err != nil {
+		log.Println("Error writing response:", err)
+		http.Error(w, "Ошибка сервера при ответе", http.StatusInternalServerError)
+		return
 	}
 }
 
 func (obj *UserHandler) AddUserHandler(w http.ResponseWriter, r *http.Request) {
-
 	var data UserClipboard
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
@@ -58,12 +76,19 @@ func (obj *UserHandler) AddUserHandler(w http.ResponseWriter, r *http.Request) {
 		Age:   data.Age,
 	}
 
-	err = obj.repository.AddUser(user)
+	user.ID, err = obj.repository.AddUser(obj.ctx, user)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "Не удалось добавить пользователя", http.StatusInternalServerError)
 	}
-	fmt.Fprintln(w, "Пользователь добавлен")
+
+	userWriteRes, err := obj.repository.GetUser(obj.ctx, user.ID)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Ошибка чтения добавленной записи", http.StatusInternalServerError)
+		return
+	}
+	writeResponse(w, *userWriteRes)
 	return
 }
 
@@ -75,27 +100,14 @@ func (obj *UserHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := obj.repository.GetUser(id)
+	user, err := obj.repository.GetUser(obj.ctx, id)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "Не нашли пользователя", http.StatusNotFound)
 		return
 	}
 
-	jsonData, err := json.Marshal(user)
-	if err != nil {
-		log.Println(err)
-		http.Error(w, "Ошибка сервера", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, err = w.Write(jsonData)
-	if err != nil {
-		log.Println("Error writing response:", err)
-		http.Error(w, "Ошибка сервера при ответе", http.StatusInternalServerError)
-		return
-	}
+	writeResponse(w, *user)
 
 }
 
@@ -123,13 +135,21 @@ func (obj *UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request
 		Age:   data.Age,
 	}
 
-	err = obj.repository.UpdateUser(user)
+	err = obj.repository.UpdateUser(obj.ctx, user)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "Не получилось обновить данные", http.StatusInternalServerError)
 		return
 	}
-	fmt.Fprintf(w, "Пользователь ID = %d изменен\n", id)
+
+	userWriteRes, err := obj.repository.GetUser(obj.ctx, user.ID)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Ошибка чтения обновленной записи", http.StatusInternalServerError)
+		return
+	}
+	writeResponse(w, *userWriteRes)
+
 	return
 }
 
@@ -141,13 +161,14 @@ func (obj *UserHandler) DeleteUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	err = obj.repository.DeleteUser(id)
+	err = obj.repository.DeleteUser(obj.ctx, id)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, "Не получилось удалить пользователя", http.StatusInternalServerError)
+		writeResponse(w, map[string]string{"success": "false"})
+		http.Error(w, "Ошибка удаления", http.StatusInternalServerError)
 		return
 	}
-	fmt.Fprintln(w, "Пользователь удален")
+	writeResponse(w, map[string]string{"success": "true"})
 
 	return
 }

@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"pasha/handler"
 	"pasha/repository"
+	"syscall"
 )
 
 func CheckIpMiddleware(next http.Handler) http.Handler {
@@ -27,11 +31,13 @@ func CheckIpMiddleware(next http.Handler) http.Handler {
 
 func main() {
 
-	pgRepo := repository.NewUserSQLRepository()
-	inmemoryRepo := repository.NewUserInMemoryRepository()
+	ctx := context.Background()
 
-	/*	mem := serverMemoryPackage.NewServerMemory()*/
-	userHandler := handler.NewUserHandler(inmemoryRepo)
+	pgRepo := repository.NewUserSQLRepository(ctx)
+	defer pgRepo.Close(ctx)
+	inmemoryRepo := repository.NewUserInMemoryRepository(ctx)
+
+	userHandler := handler.NewUserHandler(ctx, inmemoryRepo)
 	rout := mux.NewRouter()
 	rout.Use(CheckIpMiddleware)
 
@@ -40,8 +46,25 @@ func main() {
 	rout.HandleFunc("/user/{id:[0-9]+}", userHandler.UpdateUserHandler).Methods(http.MethodPut)
 	rout.HandleFunc("/user/{id:[0-9]+}", userHandler.DeleteUserHandler).Methods(http.MethodDelete)
 
-	fmt.Println("Сервер запущен на http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", rout))
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: rout}
+	go func() {
+		fmt.Println("Сервер запущен на http://localhost:8080")
+		log.Fatal(srv.ListenAndServe())
+	}()
 
-	pgRepo.Close()
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	// Ожидаем сигнала завершения
+	<-stop
+
+	// Graceful Shutdown
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("Forced shutdown: %v", err)
+	}
+
+	log.Println("Server stopped gracefully")
 }
