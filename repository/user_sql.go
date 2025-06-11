@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
@@ -9,6 +10,8 @@ import (
 	"os"
 	"pasha/models"
 )
+
+var ErrUserNotFound = errors.New("user not found")
 
 type UserSQLRepository struct {
 	conn *pgx.Conn
@@ -41,6 +44,10 @@ SELECT id, email, name, age
 FROM users
 WHERE id = $1`, id).Scan(&user.ID, &user.Email, &user.Name, &user.Age)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+
 		return nil, fmt.Errorf("failed to get user id %d from db: %v ", id, err)
 	}
 	return user, nil

@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"pasha/handler"
 	"pasha/repository"
+	"pasha/validators"
 	"syscall"
 )
 
@@ -32,12 +33,12 @@ func CheckIpMiddleware(next http.Handler) http.Handler {
 func main() {
 
 	ctx := context.Background()
-
+	validateUsers := validators.NewValidatorForUser()
 	pgRepo := repository.NewUserSQLRepository(ctx)
 	defer pgRepo.Close(ctx)
-	inmemoryRepo := repository.NewUserInMemoryRepository(ctx)
+	//inmemoryRepo := repository.NewUserInMemoryRepository(ctx)
 
-	userHandler := handler.NewUserHandler(ctx, inmemoryRepo)
+	userHandler := handler.NewUserHandler(ctx, pgRepo, validateUsers)
 	rout := mux.NewRouter()
 	rout.Use(CheckIpMiddleware)
 

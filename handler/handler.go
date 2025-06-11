@@ -3,10 +3,14 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"pasha/models"
+	"pasha/repository"
+	"pasha/validators"
 	"strconv"
 )
 
@@ -23,22 +27,24 @@ const (
 )
 
 type UserClipboard struct {
-	ID    int    `json:"id,omitempty"`
-	Email string `json:"email,omitempty"`
-	Name  string `json:"name,omitempty"`
-	Age   int    `json:"age,omitempty"`
+	ID    int    `json:"id,omitempty" validate:"omitempty"`
+	Email string `json:"email" validate:"required,email,gmail_email"`
+	Name  string `json:"name" validate:"required,russian_name"`
+	Age   int    `json:"age" validate:"gte=0,lte=130"`
 }
 
 type UserHandler struct {
 	repository Repository
 	ctx        context.Context
+	validator  *validators.ValidatorForUser
 }
 
-func NewUserHandler(ctx context.Context, repository Repository) *UserHandler {
+func NewUserHandler(ctx context.Context, repository Repository, validator *validators.ValidatorForUser) *UserHandler {
 
 	return &UserHandler{
 		repository: repository,
 		ctx:        ctx,
+		validator:  validator,
 	}
 }
 
@@ -69,6 +75,12 @@ func (obj *UserHandler) AddUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
+	err = obj.validator.Struct(data)
+	if err != nil {
+		log.Println(err.(validator.ValidationErrors))
+		http.Error(w, errDataFormat, http.StatusBadRequest)
+		return
+	}
 	user := models.User{
 
 		Email: data.Email,
@@ -103,7 +115,11 @@ func (obj *UserHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	user, err := obj.repository.GetUser(obj.ctx, id)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, "Не нашли пользователя", http.StatusNotFound)
+		if errors.Is(err, repository.ErrUserNotFound) {
+			http.Error(w, "Не нашли пользователя", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Что то пошло не так", http.StatusInternalServerError)
 		return
 	}
 
@@ -127,6 +143,13 @@ func (obj *UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 	defer r.Body.Close()
+
+	err = obj.validator.Struct(data)
+	if err != nil {
+		log.Println(err.(validator.ValidationErrors))
+		http.Error(w, errDataFormat, http.StatusBadRequest)
+		return
+	}
 
 	user := models.User{
 		ID:    id,
